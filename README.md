@@ -66,4 +66,5 @@ Contexto: el parseo del archivo fuente sucede en el método procesa (nombreArchi
 3. Discernir si la línea contiene una instrucción o una etiqueta
 
     a. Si contiene un etiqueta tenemos que agregar en el diccionario lookupTable el par <etiqueta, posición de la instrucción correspondiente>
+    
     b. Si contiene una instrucción, tendremos que indicar el tipo y los parámetros para generar la instrucción correspondiente
