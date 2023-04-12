@@ -21,11 +21,12 @@ Simulación de Multitasking estático de un Sistema Operativo
         * Ejemplo (“Ciclo” => 2, “Continuar” => 6)
     * Lista de instrucciones: el i-esimo elemento va a ser la instrucción ejecutable de la i-esima instrucción del programa
 
-** Instruccion:**
+**Instruccion:**
 * Que tenga un descendiente por cada tipo de instruccion
 * O sea las subclases serían: Mov, Add, Cmp, Inc, Dec, ect
 
 **instrucciones**
+
 Mov:
 * Mov ax, bx
 * Mov ax, 1
