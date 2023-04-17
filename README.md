@@ -59,7 +59,7 @@ Dec:
 * Decrementa en 1 el valor de un registro
 
 ### Ejemplo
-Contexto: el parseo del archivo fuente sucede en el método procesa (nombreArchivo) de la clase Ensamblador
+Contexto: el parseo del archivo fuente sucede en el método procesar (nombreArchivo) de la clase Ensamblador
 
 ## Pasos:
 1. Crear una instancia Ejecutable
