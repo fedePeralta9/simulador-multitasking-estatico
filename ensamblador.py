@@ -30,28 +30,27 @@ class Ensamblador():
                 else:
                     errores.agregarError("la etiqueta " + str(isntruction.param1) + " no existe en el programa")
     
-    def matchearEtiqueta(self,matchEtiqueta, ejecutable, indiceIndtruccion):
-        #si es una etiqueta
-        if(matchEtiqueta):
-            #guarda el nombre sin los :
-            etiqueta = matchEtiqueta.group(1)
-            #agregamos la etiqueta al dic (ej: 'Ciclo' : 3)
-            ejecutable.lookupTable.update({etiqueta: indiceIndtruccion+1})
-            #agregamos a la lista de codigo fuente cualquier etiqueta
-            #Es para que las listas esten alineadas con los indices
-            ejecutable.listSourceCode.append(etiqueta)
-            #instanciamos en la lista de instrucciones la etiqueta como Noop()
-            ejecutable.listInstructions.append(Noop())
-            #si es un entrypoint guarda el indice de la siguiente instruccion a ejecutarse
-            if(self.esEntryPoint(etiqueta)):
-                ejecutable.entryPoint = indiceIndtruccion+1
-            indiceIndtruccion +=1
+    def matchearEtiqueta(self,matchEtiqueta, ejecutable, indiceInstruccion):
+        
+        #guarda el nombre sin los :
+        etiqueta = matchEtiqueta.group(1)
+        #agregamos la etiqueta al dic (ej: 'Ciclo' : 3)
+        ejecutable.lookupTable.update({etiqueta: indiceInstruccion+1})
+        #agregamos a la lista de codigo fuente cualquier etiqueta
+        #Es para que las listas esten alineadas con los indices
+        ejecutable.listSourceCode.append(etiqueta)
+        #instanciamos en la lista de instrucciones la etiqueta como Noop()
+        ejecutable.listInstructions.append(Noop())
+        #si es un entrypoint guarda el indice de la siguiente instruccion a ejecutarse
+        if(self.esEntryPoint(etiqueta)):
+            ejecutable.entryPoint = indiceInstruccion+1
+        indiceInstruccion +=1
     
-    def matchearInstruccion(self,matchInstruccionUnParametro,matchInstruccionDosParametros, linea, ejecutable,REGISTROS,indiceIndtruccion):
-        if(matchInstruccionUnParametro or matchInstruccionDosParametros):
-            indiceIndtruccion +=1
-            self.matchearInstruccionDeDosParametros(matchInstruccionDosParametros, linea, ejecutable)
-            self.matchearInstruccionDeUnParametro(matchInstruccionUnParametro,ejecutable,REGISTROS)
+    def matchearInstruccion(self,matchInstruccionUnParametro,matchInstruccionDosParametros, linea, ejecutable,REGISTROS,indiceInstruccion):
+        
+        indiceInstruccion +=1
+        self.matchearInstruccionDeDosParametros(matchInstruccionDosParametros, linea, ejecutable)
+        self.matchearInstruccionDeUnParametro(matchInstruccionUnParametro,ejecutable,REGISTROS)
               
     def matchearInstruccionDeUnParametro(self,matchInstruccionUnParametro,ejecutable,REGISTROS):
         
@@ -107,7 +106,7 @@ class Ensamblador():
         REGISTROS = ["ax", "bx", "cx", "dx"]
         file=open(self.archivo,'r')
         numeroLineas=1
-        indiceIndtruccion=0
+        indiceInstruccion=0
         for linea in file: 
             #verifica  si es una etiqueta, la agrega al dic, en listas como noop para alinear indices
             espacios = re.search('^\s*\n',linea)
@@ -116,9 +115,9 @@ class Ensamblador():
             matchInstruccionDosParametros = re.search('(Mov|Add|Cmp)\s+(Ax|Bx|Cx|Dx),\s+(|Ax|Bx|Cx|Dx|\d+)\s*\n', linea)
             
             if(matchEtiqueta):
-                self.matchearEtiqueta(matchEtiqueta, ejecutable, indiceIndtruccion)
+                self.matchearEtiqueta(matchEtiqueta, ejecutable, indiceInstruccion)
             elif(matchInstruccionUnParametro or matchInstruccionDosParametros):
-                self.matchearInstruccion(matchInstruccionUnParametro,matchInstruccionDosParametros, linea, ejecutable,REGISTROS,indiceIndtruccion)
+                self.matchearInstruccion(matchInstruccionUnParametro,matchInstruccionDosParametros, linea, ejecutable,REGISTROS,indiceInstruccion)
             elif(espacios):
                 print("es linea vacia en la linea: " +str(numeroLineas))
             else:
