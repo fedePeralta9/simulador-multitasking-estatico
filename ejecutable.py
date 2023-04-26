@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 class Ejecutable():
-    def __init__(self, listInstructions, lookupTable, entryPoint, listSourceCode):
-        self.listInstructions = listInstructions
-        self.lookupTable = lookupTable
-        self.entryPoint = entryPoint
-        self.listSourceCode = listSourceCode
+    def __init__(self):
+        self.listInstructions = []
+        self.lookupTable = {}
+        self.entryPoint = 0
+        self.listSourceCode = []
+    
+    def mostrarInstrucciones(self):
+        for instruccion in self.listInstructions:
+            instruccion.mostrar()
     
     def mostrarResultados(self):
-            print (self.listSourceCode)
-            print (self.entryPoint)
-            print (self.lookupTable)
+        print (self.listSourceCode)
+        print (self.entryPoint)
+        print (self.lookupTable)
+        self.mostrarInstrucciones()
+        
     

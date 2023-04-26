@@ -9,20 +9,6 @@ from error import *
 class Ensamblador():
     def __init__(self, archivo):
         self.archivo = archivo
-
-    def esEtiqueta(self, linea):
-        resultado = False
-        match = re.search('^([\w_]+):', linea)
-        if(match):
-            resultado = True
-        return resultado
-    
-    def esInstruccion(self, linea):
-        resultado = False
-        match = re.search('\s*(mov|add|jmp|jnz|cmp|inc|dec)(.*)\s*', linea)
-        if(match):
-            resultado = True
-        return resultado
     
     def esEntryPoint(self, etiqueta):
         resultado = False
@@ -30,54 +16,116 @@ class Ensamblador():
             resultado = True
         return resultado
     
+    def definirSaltosEtiquetas(self, listInstructions, lookupTable, errores):
+        for indice, isntruction in enumerate(listInstructions):
+            if ((isinstance(isntruction, Jmp) or isinstance(isntruction, Jnz)) and isinstance(isntruction.param1, str)):
+                #'Fin' esta en el dic
+                if(isntruction.param1 in lookupTable):
+                    #indice 'Fin' : 10
+                    indiceEtiqueta = lookupTable.get(isntruction.param1)
+                    #Jmp('Fin') => Jmp
+                    nombreClase = isntruction.__class__
+                    #isntanci en el lugar de Jmp('Fin') = Jmp(10)
+                    listInstructions[indice] = nombreClase(indiceEtiqueta)
+                else:
+                    errores.agregarError("la etiqueta " + str(isntruction.param1) + " no existe en el programa")
+    
+    def matchearEtiqueta(self,matchEtiqueta, ejecutable, indiceIndtruccion):
+        #si es una etiqueta
+        if(matchEtiqueta):
+            #guarda el nombre sin los :
+            etiqueta = matchEtiqueta.group(1)
+            #agregamos la etiqueta al dic (ej: 'Ciclo' : 3)
+            ejecutable.lookupTable.update({etiqueta: indiceIndtruccion+1})
+            #agregamos a la lista de codigo fuente cualquier etiqueta
+            #Es para que las listas esten alineadas con los indices
+            ejecutable.listSourceCode.append(etiqueta)
+            #instanciamos en la lista de instrucciones la etiqueta como Noop()
+            ejecutable.listInstructions.append(Noop())
+            #si es un entrypoint guarda el indice de la siguiente instruccion a ejecutarse
+            if(self.esEntryPoint(etiqueta)):
+                ejecutable.entryPoint = indiceIndtruccion+1
+            indiceIndtruccion +=1
+    
+    def matchearInstruccion(self,matchInstruccionUnParametro,matchInstruccionDosParametros, linea, ejecutable,REGISTROS,indiceIndtruccion):
+        if(matchInstruccionUnParametro or matchInstruccionDosParametros):
+            indiceIndtruccion +=1
+            self.matchearInstruccionDeDosParametros(matchInstruccionDosParametros, linea, ejecutable)
+            self.matchearInstruccionDeUnParametro(matchInstruccionUnParametro,ejecutable,REGISTROS)
+              
+    def matchearInstruccionDeUnParametro(self,matchInstruccionUnParametro,ejecutable,REGISTROS):
+        
+        if(matchInstruccionUnParametro):
+            #agregamos a la lista de codigo fuente la instruccion
+            ejecutable.listSourceCode.append(matchInstruccionUnParametro.group().rstrip())
+            #tomamos el nombre de la instruccion con global para poder instanciar la clase
+            instanciaInstruccion = globals()[matchInstruccionUnParametro.group(1)]
+            #si es una instruccion Inc o Dec, y su parametro esta en registros 
+            self.identificarParametroCoRegistro(REGISTROS,matchInstruccionUnParametro,ejecutable,instanciaInstruccion)
+            
+            #si es una instruccion Jmp o Jnz, y su parametro no esta en registros ya que debe ser una etiqueta
+            self.identificarParametroConEtiqueta(REGISTROS,matchInstruccionUnParametro,ejecutable,instanciaInstruccion)
+    
+    def matchearInstruccionDeDosParametros(self, matchInstruccionDosParametros, linea, ejecutable):
+        #si es de dos
+        if(matchInstruccionDosParametros):
+            #tomamos el nombre de la instruccion con global para poder instanciar la clase
+            instanciaInstruccion = globals()[matchInstruccionDosParametros.group(1)]
+            #matcheamos los parametros y los guardamos en param1 y 2
+            matchParametros = re.search('\s*(\w+),\s*(\w+)', linea)
+            param1 = matchParametros.group(1)
+            param2 = matchParametros.group(2)
+            #agregamos a la lista de codigo fuente la instruccion (ej: 'Mov Ax, 1') 
+            #la funcion rstrip() es para quitar \n al final
+            ejecutable.listSourceCode.append(matchInstruccionDosParametros.group().rstrip())
+            #instanciamos en la lista de instrucciones(ej: Mov(Ax,1))
+            ejecutable.listInstructions.append(instanciaInstruccion(param1,param2))
+        
+    def identificarParametroConEtiqueta(self,REGISTROS,matchInstruccionUnParametro,ejecutable,instanciaInstruccion):
+        if(matchInstruccionUnParametro.group(1) in ['Jmp','Jnz'] and not(matchInstruccionUnParametro.group(2) in REGISTROS)):
+            #matcheamos el parametro
+            param1 = matchInstruccionUnParametro.group(2)
+            #busca la clave en el dic si existe devuelve el valor si no lo segundo
+            #ej: get('Ciclo', 'Ciclo') => como existe devuelve 3
+            indiceEtiqueta = ejecutable.lookupTable.get(param1, param1)
+            #jmp Ciclo → existe en lookupTable {Ciclo => 3}? si → listInstruccion [Jmp(3)]
+            #jmp Fin → existe en lookupTable { } ? no → listInstruccion [Jmp(‘Fin’)]
+
+            #instanciamos en la lista de instrucciones(ej: Jmp(3))
+            ejecutable.listInstructions.append(instanciaInstruccion(indiceEtiqueta))
+    
+    def identificarParametroCoRegistro(self,REGISTROS,matchInstruccionUnParametro,ejecutable,instanciaInstruccion):
+        if(matchInstruccionUnParametro.group(1) in ['Inc','Dec'] and matchInstruccionUnParametro.group(2) in REGISTROS):
+            #matcheamos el parametro
+            param1 = matchInstruccionUnParametro.group(2)
+            #instanciamos en la lista de instrucciones(ej: Inc(Ax))
+            ejecutable.listInstructions.append(instanciaInstruccion(param1))
+    
     def procesar(self):
-        entryPoint = 0
-        listSourceCode = []
-        lookupTable = {}
-        listInstructions = []
+        ejecutable = Ejecutable()
         errores = Error()
-        REGISTROS = ("ax", "bx", "cx", "dx")
-        with open(self.archivo, 'r') as archivo:
-            lineas = archivo.readlines()
-        numeroLineas = 0
-        for linea in lineas: 
+        REGISTROS = ["ax", "bx", "cx", "dx"]
+        file=open(self.archivo,'r')
+        numeroLineas=1
+        indiceIndtruccion=0
+        for linea in file: 
             #verifica  si es una etiqueta, la agrega al dic, en listas como noop para alinear indices
-            if(self.esEtiqueta(linea)):
-                match = re.search('^([\w_]+):', linea)
-                etiqueta = match.group()
-                lookupTable.update({etiqueta: numeroLineas})
-                listSourceCode.append('noop')
-                listInstructions.append(Noop())
-                #si es un entrypoint guarda el indice
-                if(self.esEntryPoint(etiqueta)):
-                    entryPoint = numeroLineas
-            #si es una instruccion, guarda en la lista de codigo fuente ('mov ax,1')
-            elif(self.esInstruccion(linea)):
-                match = re.search('(mov|add|jmp|jnz|cmp|inc|dec)(.*)', linea)
-                instruccion = match.group()
-                instanciaInstruccion = globals()[match.group(1).capitalize()]
-                listSourceCode.append(instruccion)
-                #si pertenece al de dos parametros, separa los parametros y guarda las instancias en la lista 
-                if(match.group(1) in ["cmp", "add", "mov"]):
-                    match = re.search('\s*(\w+),\s*(\w+)', linea)
-                    param1 = match.group(1)
-                    param2 = match.group(2)
-                    if(param1 not in REGISTROS):
-                        errores.agregarError("Error de sintaxis del registro en el primer parametro, linea " + str(numeroLineas+1))
-                    #problema con si es un literal
-                    #elif(param2 not in REGISTROS or not param2.isdigit()):
-                        #errores.agregarError("Error de sintaxis del registro o literal en el segundo parametro, linea " + str(numeroLineas+1))
-                    listInstructions.append(instanciaInstruccion(param1,param2))
-                #si pertenece al de un parametro, guarda la instancia en la lista
-                elif(match.group(1) in ["dec", "inc"]):
-                    param1 = match.group(2)
-                    listInstructions.append(instanciaInstruccion(param1))
-                #resolucion de salto
-                elif(match.group(1) in ["jnz", "jmp"]):
-                    param1 = match.group(2)
-                    indiceEtiqueta = lookupTable.get(param1, param1)
-                    listInstructions.append(instanciaInstruccion(indiceEtiqueta))
+            espacios = re.search('^\s*\n',linea)
+            matchEtiqueta = re.search('^(\w+):', linea)
+            matchInstruccionUnParametro = re.search('(Jmp|Jnz|Inc|Dec)\s+(Ax|Bx|Cx|Dx|\w+)\s*\n', linea)
+            matchInstruccionDosParametros = re.search('(Mov|Add|Cmp)\s+(Ax|Bx|Cx|Dx),\s+(|Ax|Bx|Cx|Dx|\d+)\s*\n', linea)
+            
+            if(matchEtiqueta):
+                self.matchearEtiqueta(matchEtiqueta, ejecutable, indiceIndtruccion)
+            elif(matchInstruccionUnParametro or matchInstruccionDosParametros):
+                self.matchearInstruccion(matchInstruccionUnParametro,matchInstruccionDosParametros, linea, ejecutable,REGISTROS,indiceIndtruccion)
+            elif(espacios):
+                print("es linea vacia en la linea: " +str(numeroLineas))
+            else:
+                errores.agregarError("Error de escritura en la Linea: "+str(numeroLineas))
             numeroLineas += 1
+        file.close()
+        self.definirSaltosEtiquetas(ejecutable.listInstructions, ejecutable.lookupTable, errores)
         errores.mostrarErrores()
-        return Ejecutable(listInstructions, lookupTable, entryPoint, listSourceCode)
+        return ejecutable
     
